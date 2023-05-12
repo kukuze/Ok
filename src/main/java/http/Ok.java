@@ -4,33 +4,33 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import okhttp3.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static http.utils.url.mapToEncodedUrl;
+
 
 public class Ok {
     private static volatile OkHttpClient okHttpClient = null;
-    public Map<String, String> headerMap;
-    public Map<String, String> paramMap;
-    private String url;
-    private Request.Builder request;
-    protected final static Logger log = LoggerFactory.getLogger(Ok.class);
- 
+    private Map<String, String> headerMap;
+    private Map<String, String> paramMap;
+    private List<String> urls;
+    private List<Request.Builder> requests;
+    private JSONArray res;
+
+
     /**
      * 初始化okHttpClient，并且允许https访问
      */
@@ -52,11 +52,8 @@ public class Ok {
             }
         }
     }
- 
- 
 
- 
- 
+
     /**
      * 创建OkHttpUtils
      *
@@ -65,8 +62,8 @@ public class Ok {
     public static Ok builder() {
         return new Ok();
     }
- 
- 
+
+
     /**
      * 添加url
      *
@@ -74,48 +71,23 @@ public class Ok {
      * @return
      */
     public Ok url(String url) {
-        this.url = url;
+        if (this.urls == null)
+            this.urls = new ArrayList<>();
+        this.urls.add(url);
         return this;
     }
-    /**
-     * description:该方法的返回值不对应url顺序
-     * author:yjz
-     * @param urls
-     * @return com.alibaba.fastjson.JSONArray
-     */
-    public  JSONArray urls(List<String>urls) throws InterruptedException {
-        JSONArray res = new JSONArray();
-        CountDownLatch latch = new CountDownLatch(urls.size());
-        for (String url : urls) {
-            request = new Request.Builder().get().url(url);
-            Call call = okHttpClient.newCall(request.build());
-            call.enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    e.printStackTrace();
-                    latch.countDown();
-                }
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    try {
-                        String result = response.body().string();
-                        JSONObject json =JSONObject.parseObject(result);
-                        res.add(json);
-                        latch.countDown();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-        }
-        latch.await();
-        return res;
+
+    public Ok urls(List<String> urls) {
+        if (this.urls == null)
+            this.urls = new ArrayList<>();
+        this.urls.addAll(urls);
+        return this;
     }
- 
- 
+
+
     /**
      * 添加参数
-     * 
+     *
      * @param key   参数名
      * @param value 参数值
      * @return
@@ -127,22 +99,24 @@ public class Ok {
         paramMap.put(key, value);
         return this;
     }
-    public Ok addParamMap(Map map){
+
+    public Ok addParamMap(Map map) {
         if (paramMap == null) {
             paramMap = new LinkedHashMap<>(16);
         }
         paramMap.putAll(map);
         return this;
     }
-    public Ok addHeaderMap(Map map){
+
+    public Ok addHeaderMap(Map map) {
         if (headerMap == null) {
             headerMap = new LinkedHashMap<>(16);
         }
         headerMap.putAll(map);
         return this;
     }
- 
- 
+
+
     /**
      * 添加请求头
      *
@@ -157,133 +131,195 @@ public class Ok {
         headerMap.put(key, value);
         return this;
     }
- 
- 
+
+
     /**
      * 初始化get方法
      *
      * @return
      */
     public Ok get() {
-        request = new Request.Builder().get();
-        StringBuilder urlBuilder = new StringBuilder(url);
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
+        StringBuffer suffix = new StringBuffer();
         if (paramMap != null) {
-            urlBuilder.append("?");
-            try {
-                for (Map.Entry<String, String> entry : paramMap.entrySet()) {
-                    urlBuilder.append(URLEncoder.encode(entry.getKey(), "utf-8")).
-                            append("=").
-                            append(URLEncoder.encode(entry.getValue(), "utf-8")).
-                            append("&");
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            urlBuilder.deleteCharAt(urlBuilder.length() - 1);
+            suffix.append("?");
+            suffix.append(mapToEncodedUrl(paramMap));
         }
-        request.url(urlBuilder.toString());
+        for (int i = 0; i < urls.size(); i++) {
+            String url = urls.get(i);
+            Request.Builder request = new Request.Builder().get();
+            request.url(url + suffix);
+            requests.add(request);
+        }
         return this;
     }
- 
- 
+
+
     /**
-     * 初始化post方法
+     * 构建通过post的格式发送form的request
      *
-     * @param isJsonPost true等于json的方式提交数据，类似postman里post方法的raw
-     *                   false等于普通的表单提交
+     * @param formData
      * @return
      */
-    public Ok post(boolean isJsonPost) {
+    public Ok postForm(Map<String, String> formData) {
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
         RequestBody requestBody;
-        if (isJsonPost) {
-            String json = "";
-            if (paramMap != null) {
-                json = JSON.toJSONString(paramMap);
-            } 
-            requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), json);
-        } else {
-            FormBody.Builder formBody = new FormBody.Builder();
-            if (paramMap != null) {
-                paramMap.forEach(formBody::add);
-            }
-            requestBody = formBody.build();
+        FormBody.Builder formBody = new FormBody.Builder();
+        if (formData != null) {
+            formData.forEach(formBody::add);
         }
-        request = new Request.Builder().post(requestBody).url(url);
+        requestBody = formBody.build();
+        for (int i = 0; i < urls.size(); i++) {
+            String url = urls.get(i);
+            requests.add(new Request.Builder().post(requestBody).url(url));
+        }
         return this;
     }
+
     /**
-     * description:
+     * description:构建通过post的格式发送json的request
      * author:yjz
-     * @param jsonObject 需要以json格式发送的对象
+     *
+     * @param jsonString 需要以json格式发送的对象
      * @return http.Ok
      */
-    public Ok post(String jsonObject) {
+    public Ok postJson(String jsonString) {
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
         RequestBody requestBody;
-        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonObject);
-        request = new Request.Builder().post(requestBody).url(url);
+        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonString);
+        for (int i = 0; i < urls.size(); i++) {
+            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
+        }
         return this;
     }
- 
- 
+
+    public Ok postJson(Map<String, String> json) {
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
+        RequestBody requestBody;
+        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), JSON.toJSONString(json));
+        for (int i = 0; i < urls.size(); i++) {
+            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
+        }
+        return this;
+    }
+
+    /**
+     * description:构建通过post的格式发送x-www-form-urlencoded的request
+     * author:yjz
+     *
+     * @param xWwwFormUrlEncoded 需要以x-www-form-urlencoded格式发送的对象
+     * @return http.Ok
+     */
+    public Ok postUrlEncoded(Map<String, String> xWwwFormUrlEncoded) {
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
+        RequestBody requestBody;
+        String suffix = mapToEncodedUrl(xWwwFormUrlEncoded);
+        requestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"), suffix);
+        for (int i = 0; i < urls.size(); i++) {
+            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
+        }
+        return this;
+    }
+
+
     /**
      * 同步请求
      *
-     * @return
+     * @return 只添加一个url返回结果是jsonobject, 多url是jsonarray
      */
     public String sync() {
-        setHeader(request);
+        setHeader(requests);
         try {
-            Response response = okHttpClient.newCall(request.build()).execute();
-            assert response.body() != null;
-            return response.body().string();
+            if (requests.size() == 1) {
+                Response response = okHttpClient.newCall(requests.get(0).build()).execute();
+                assert response.body() != null;
+                return response.body().string();
+            } else {
+                if (res == null)
+                    res = new JSONArray();
+                CountDownLatch latch = new CountDownLatch(urls.size());
+                for (Request.Builder request : requests) {
+                    Call call = okHttpClient.newCall(request.build());
+                    call.enqueue(new Callback() {
+                        @Override
+                        public void onFailure(Call call, IOException e) {
+                            e.printStackTrace();
+                            latch.countDown();
+                        }
+
+                        @Override
+                        public void onResponse(Call call, Response response) {
+                            try {
+                                String result = response.body().string();
+                                JSONObject json = JSONObject.parseObject(result);
+                                res.add(json);
+                                latch.countDown();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                }
+                latch.await();
+            }
+            return res.toJSONString();
         } catch (Exception e) {
             return "";
         }
     }
- 
+
     /**
      * 异步请求，带有接口回调
      *
      * @param callBack
      */
     public void async(ICallBack callBack) {
-        setHeader(request);
-        okHttpClient.newCall(request.build()).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                callBack.onFailure(call, e.getMessage());
-            }
- 
- 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                assert response.body() != null;
-                callBack.onSuccessful(call, response.body().string());
-            }
-        });
+        setHeader(requests);
+        for (Request.Builder request : requests) {
+            okHttpClient.newCall(request.build()).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    callBack.onFailure(call, e.getMessage());
+                }
+
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    assert response.body() != null;
+                    callBack.onSuccessful(call, response.body().string());
+                }
+            });
+        }
+
     }
- 
- 
+
+
     /**
-     * 为request添加请求头
+     * 为requests添加请求头
      *
-     * @param request
+     * @param requests
      */
-    private void setHeader(Request.Builder request) {
+    private void setHeader(List<Request.Builder> requests) {
         if (headerMap != null) {
             try {
-                for (Map.Entry<String, String> entry : headerMap.entrySet()) {
-                    request.addHeader(entry.getKey(), entry.getValue());
+                for (int i = 0; i < requests.size(); i++) {
+                    Request.Builder request = requests.get(i);
+                    for (Map.Entry<String, String> entry : headerMap.entrySet()) {
+                        request.addHeader(entry.getKey(), entry.getValue());
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
- 
- 
- 
- 
+
+
     /**
      * 生成安全套接字工厂，用于https请求的证书跳过
      *
@@ -300,21 +336,21 @@ public class Ok {
         }
         return ssfFactory;
     }
- 
- 
+
+
     private static TrustManager[] buildTrustManagers() {
         return new TrustManager[]{
                 new X509TrustManager() {
                     @Override
                     public void checkClientTrusted(X509Certificate[] chain, String authType) {
                     }
- 
- 
+
+
                     @Override
                     public void checkServerTrusted(X509Certificate[] chain, String authType) {
                     }
- 
- 
+
+
                     @Override
                     public X509Certificate[] getAcceptedIssuers() {
                         return new X509Certificate[]{};
@@ -322,19 +358,19 @@ public class Ok {
                 }
         };
     }
- 
- 
+
+
     /**
      * 自定义一个接口回调
      */
     public interface ICallBack {
- 
- 
+
+
         void onSuccessful(Call call, String data);
- 
- 
+
+
         void onFailure(Call call, String errorMsg);
- 
- 
+
+
     }
 }
