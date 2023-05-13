@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -242,8 +243,11 @@ public class Ok {
             } else {
                 if (res == null)
                     res = new JSONArray();
+                Map<Integer, JSONObject> resultMap = new ConcurrentHashMap<>(); // 用于存储请求结果的Map
                 CountDownLatch latch = new CountDownLatch(urls.size());
-                for (Request.Builder request : requests) {
+                for (int i = 0; i < requests.size(); i++) {
+                    final Integer index = i;
+                    Request.Builder request = requests.get(i);
                     Call call = okHttpClient.newCall(request.build());
                     call.enqueue(new Callback() {
                         @Override
@@ -255,17 +259,21 @@ public class Ok {
                         @Override
                         public void onResponse(Call call, Response response) {
                             try {
+                                assert response.body() != null;
                                 String result = response.body().string();
                                 JSONObject json = JSONObject.parseObject(result);
-                                res.add(json);
+                                resultMap.put(index,json);
                                 latch.countDown();
                             } catch (Exception e) {
-                                e.printStackTrace();
+
                             }
                         }
                     });
                 }
                 latch.await();
+                for (int i = 0; i <urls.size(); i++) {
+                    res.add(resultMap.get(i));
+                }
             }
             return res.toJSONString();
         } catch (Exception e) {
