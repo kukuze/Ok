@@ -277,7 +277,7 @@ public class Ok {
             }
             return res.toJSONString();
         } catch (Exception e) {
-            return "";
+            return null;
         }
     }
 
