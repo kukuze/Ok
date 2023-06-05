@@ -1,9 +1,8 @@
 package http;
 
 import com.alibaba.fastjson.JSONObject;
-import okhttp3.Interceptor;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
+import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
@@ -34,7 +33,13 @@ public class RetryInterceptor implements Interceptor {
         while (retryCount < MAX_RETRY_COUNT) {
             try {
                 response = chain.proceed(request);
-                if (codes.contains(response.code())&& ResponseCodeEq200(response)) {
+                String contentType = response.header("Content-Type");
+                if (codes.contains(response.code())&& contentType != null && contentType.contains("application/json")) {
+                    if(ResponseCodeEq200(response)) {
+                        log.info(request.url() + ":success");
+                        return response;
+                    }
+                } else if (codes.contains(response.code())&& contentType != null && contentType.contains("text/html")) {
                     log.info(request.url() + ":success");
                     return response;
                 } else {
@@ -56,8 +61,8 @@ public class RetryInterceptor implements Interceptor {
         } catch (Exception e) {
 
         }
-        log.error("请求" + request.url() + "尝试全部失败" + jsonObject);
-        log.error("Please check the log for details of request failure /logs/today/error.log");
+        log.error("\n====== REQUEST FAILURE DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/error.log for more details\n======================================",
+                request.method(),request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()),getContentType(request));
         return response;
     }
 
@@ -75,4 +80,51 @@ public class RetryInterceptor implements Interceptor {
             return flag;
         }
     }
+
+    private String getParamsInfo(RequestBody requestBody) {
+        if (requestBody instanceof FormBody) {
+            FormBody formBody = (FormBody) requestBody;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < formBody.size(); i++) {
+                sb.append(formBody.name(i))
+                        .append("=")
+                        .append(formBody.value(i))
+                        .append("&");
+            }
+            if (sb.length() > 0) {
+                sb.setLength(sb.length() - 1); // 移除最后一个 "&" 符号
+            }
+            return sb.toString();
+        }else {
+            try {
+                final Buffer buffer = new Buffer();
+                if (requestBody != null) {
+                    requestBody.writeTo(buffer);
+                    return buffer.readUtf8();
+                } else {
+                    return "";
+                }
+            } catch (Exception e) {
+                return "Did not work";
+            }
+        }
+    }
+    private String getHeadersInfo(Headers headers) {
+        StringBuilder headersInfo = new StringBuilder();
+        for (int i = 0; i < headers.size(); i++) {
+            headersInfo.append(headers.name(i)).append("=").append(headers.value(i)).append("&");
+        }
+        if (headersInfo.length() > 0) {
+            headersInfo.setLength(headersInfo.length() - 1); // 移除最后一个 "&" 符号
+        }
+        return headersInfo.toString();
+    }
+    private String getContentType(Request request) {
+        if (request.body() != null && request.body().contentType() != null) {
+            return request.body().contentType().toString();
+        } else {
+            return "Unknown";
+        }
+    }
+
 }
