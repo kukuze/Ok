@@ -207,6 +207,16 @@ public class Ok {
         }
         return this;
     }
+    public Ok post() {
+        if (requests == null)
+            requests = new ArrayList<Request.Builder>();
+        RequestBody requestBody;
+        requestBody = RequestBody.create(null,"");
+        for (int i = 0; i < urls.size(); i++) {
+            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
+        }
+        return this;
+    }
 
     /**
      * description:构建通过post的格式发送x-www-form-urlencoded的request
