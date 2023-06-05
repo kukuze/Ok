@@ -35,7 +35,7 @@ public class RetryInterceptor implements Interceptor {
                 response = chain.proceed(request);
                 String contentType = response.header("Content-Type");
                 if (codes.contains(response.code())&& contentType != null && contentType.contains("application/json")) {
-                    if(ResponseCodeEq200(response)) {
+                    if(responseCodeEq200(response)) {
                         log.info(request.url() + ":success");
                         return response;
                     }
@@ -45,8 +45,9 @@ public class RetryInterceptor implements Interceptor {
                 } else {
                     Thread.sleep(RETRY_DELAY_MILLIS);
                     retryCount++;
-                    if (retryCount != MAX_RETRY_COUNT)
+                    if (retryCount != MAX_RETRY_COUNT) {
                         response.close();// 非最后一次重试失败需要关闭response
+                    }
                 }
             } catch (Exception e) {
                 log.error("正在进行第" + Integer.valueOf(retryCount + 1) + "次重试");
@@ -66,14 +67,14 @@ public class RetryInterceptor implements Interceptor {
         return response;
     }
 
-    public boolean ResponseCodeEq200(Response response) {
+    public boolean responseCodeEq200(Response response) {
         boolean flag = false; // 默认值为false
         try {
             String responseBody = response.peekBody(Long.MAX_VALUE).string();
             JSONObject jsonObject = JSONObject.parseObject(responseBody);
             //如果响应值没有code字段则默认设置为200
             String code = Optional.ofNullable(jsonObject.getString("code")).orElse("200");
-            flag = code.equals("200");
+            flag = "200".equals(code);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static http.utils.url.mapToEncodedUrl;
+import static http.utils.Url.mapToEncodedUrl;
 
 
 public class Ok {
@@ -72,15 +72,17 @@ public class Ok {
      * @return
      */
     public Ok url(String url) {
-        if (this.urls == null)
+        if (this.urls == null) {
             this.urls = new ArrayList<>();
+        }
         this.urls.add(url);
         return this;
     }
 
     public Ok urls(List<String> urls) {
-        if (this.urls == null)
+        if (this.urls == null) {
             this.urls = new ArrayList<>();
+        }
         this.urls.addAll(urls);
         return this;
     }
@@ -140,8 +142,9 @@ public class Ok {
      * @return
      */
     public Ok get() {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         StringBuffer suffix = new StringBuffer();
         if (paramMap != null) {
             suffix.append("?");
@@ -164,8 +167,9 @@ public class Ok {
      * @return
      */
     public Ok postForm(Map<String, String> formData) {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         RequestBody requestBody;
         FormBody.Builder formBody = new FormBody.Builder();
         if (formData != null) {
@@ -187,8 +191,9 @@ public class Ok {
      * @return http.Ok
      */
     public Ok postJson(String jsonString) {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         RequestBody requestBody;
         requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonString);
         for (int i = 0; i < urls.size(); i++) {
@@ -198,8 +203,9 @@ public class Ok {
     }
 
     public Ok postJson(Map<String, String> json) {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         RequestBody requestBody;
         requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), JSON.toJSONString(json));
         for (int i = 0; i < urls.size(); i++) {
@@ -208,8 +214,9 @@ public class Ok {
         return this;
     }
     public Ok post() {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         RequestBody requestBody;
         requestBody = RequestBody.create(null,"");
         for (int i = 0; i < urls.size(); i++) {
@@ -226,8 +233,9 @@ public class Ok {
      * @return http.Ok
      */
     public Ok postUrlEncoded(Map<String, String> xWwwFormUrlEncoded) {
-        if (requests == null)
+        if (requests == null) {
             requests = new ArrayList<Request.Builder>();
+        }
         RequestBody requestBody;
         String suffix = mapToEncodedUrl(xWwwFormUrlEncoded);
         requestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"), suffix);
@@ -251,8 +259,9 @@ public class Ok {
                 assert response.body() != null;
                 return response.body().string();
             } else {
-                if (res == null)
+                if (res == null) {
                     res = new JSONArray();
+                }
                 Map<Integer, JSONObject> resultMap = new ConcurrentHashMap<>(); // 用于存储请求结果的Map
                 CountDownLatch latch = new CountDownLatch(urls.size());
                 for (int i = 0; i < requests.size(); i++) {
@@ -273,9 +282,10 @@ public class Ok {
                                 String result = response.body().string();
                                 JSONObject json = JSONObject.parseObject(result);
                                 resultMap.put(index,json);
-                                latch.countDown();
                             } catch (Exception e) {
 
+                            }finally {
+                                latch.countDown();
                             }
                         }
                     });
