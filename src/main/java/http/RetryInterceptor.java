@@ -5,6 +5,7 @@ import okhttp3.*;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,20 +30,22 @@ public class RetryInterceptor implements Interceptor {
     public Response intercept(Chain chain) {
         Request request = chain.request();
         Response response = null;
+        JSONObject jsonObject = null;
         int retryCount = 0;
         while (retryCount < MAX_RETRY_COUNT) {
             try {
                 response = chain.proceed(request);
-                String contentType = response.header("Content-Type");
-                if (codes.contains(response.code())&& contentType != null && contentType.contains("application/json")) {
-                    if(responseCodeEq200(response)) {
-                        log.info(request.url() + ":success");
-                        return response;
-                    }
-                } else if (codes.contains(response.code())&& contentType != null && contentType.contains("text/html")) {
-                    log.info(request.url() + ":success");
+                if (codes.contains(response.code()) && responseCodeEq200(response)) {
+                    String responseBody = response.peekBody(Long.MAX_VALUE).string();
+                    jsonObject = JSONObject.parseObject(responseBody);
+                    log.info("\n====== REQUEST SUCCESS DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/info.log for more details\n======================================",
+                            request.method(), request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request));
                     return response;
                 } else {
+                    /**
+                     * description:处理有响应但结果不符合。
+                     * author:yjz
+                     */
                     Thread.sleep(RETRY_DELAY_MILLIS);
                     retryCount++;
                     if (retryCount != MAX_RETRY_COUNT) {
@@ -50,20 +53,17 @@ public class RetryInterceptor implements Interceptor {
                     }
                 }
             } catch (Exception e) {
+                /**
+                 * description:处理无响应
+                 * author:yjz
+                 */
                 log.error("正在进行第" + Integer.valueOf(retryCount + 1) + "次重试");
                 retryCount++;
                 log.warn(request.url() + "请求失败", e);
             }
         }
-        JSONObject jsonObject = null;
-        try {
-            String responseBody = response.peekBody(Long.MAX_VALUE).string();
-            jsonObject = JSONObject.parseObject(responseBody);
-        } catch (Exception e) {
-
-        }
         log.error("\n====== REQUEST FAILURE DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/error.log for more details\n======================================",
-                request.method(),request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()),getContentType(request));
+                request.method(), request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request));
         return response;
     }
 
@@ -96,7 +96,7 @@ public class RetryInterceptor implements Interceptor {
                 sb.setLength(sb.length() - 1); // 移除最后一个 "&" 符号
             }
             return sb.toString();
-        }else {
+        } else {
             try {
                 final Buffer buffer = new Buffer();
                 if (requestBody != null) {
@@ -110,6 +110,7 @@ public class RetryInterceptor implements Interceptor {
             }
         }
     }
+
     private String getHeadersInfo(Headers headers) {
         StringBuilder headersInfo = new StringBuilder();
         for (int i = 0; i < headers.size(); i++) {
@@ -120,6 +121,7 @@ public class RetryInterceptor implements Interceptor {
         }
         return headersInfo.toString();
     }
+
     private String getContentType(Request request) {
         if (request.body() != null && request.body().contentType() != null) {
             return request.body().contentType().toString();
