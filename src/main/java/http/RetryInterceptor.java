@@ -62,6 +62,12 @@ public class RetryInterceptor implements Interceptor {
                 log.warn(request.url() + "请求失败", e);
             }
         }
+        try {
+            String responseBody = response.peekBody(Long.MAX_VALUE).string();
+            jsonObject = JSONObject.parseObject(responseBody);
+        }catch (Exception e){
+            log.error("获取失败的响应异常"+e.getMessage());
+        }
         log.error("\n====== REQUEST FAILURE DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/error.log for more details\n======================================",
                 request.method(), request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request));
         return response;
@@ -74,7 +80,7 @@ public class RetryInterceptor implements Interceptor {
             JSONObject jsonObject = JSONObject.parseObject(responseBody);
             //如果响应值没有code字段则默认设置为200
             String code = Optional.ofNullable(jsonObject.getString("code")).orElse("200");
-            flag = "200".equals(code);
+            flag = codes.contains(code);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
