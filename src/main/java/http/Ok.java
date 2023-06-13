@@ -259,7 +259,6 @@ public class Ok {
         try {
             if (requests.size() == 1) {
                 Response response = okHttpClient.newCall(requests.get(0).build()).execute();
-                assert response.body() != null;
                 return response.body().string();
             } else {
                 if (res == null) {
@@ -281,7 +280,6 @@ public class Ok {
                         @Override
                         public void onResponse(Call call, Response response) {
                             try {
-                                assert response.body() != null;
                                 String result = response.body().string();
                                 JSONObject json = JSONObject.parseObject(result);
                                 resultMap.put(index,json);
@@ -300,6 +298,7 @@ public class Ok {
             }
             return res.toJSONString();
         } catch (Exception e) {
+            log.error(e.getMessage());
             return null;
         }
     }
@@ -321,7 +320,6 @@ public class Ok {
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    assert response.body() != null;
                     callBack.onSuccessful(call, response.body().string());
                 }
             });
@@ -345,7 +343,7 @@ public class Ok {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error(e.getMessage());
             }
         }
     }
@@ -363,7 +361,7 @@ public class Ok {
             sc.init(null, trustAllCerts, new SecureRandom());
             ssfFactory = sc.getSocketFactory();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
         return ssfFactory;
     }

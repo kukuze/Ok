@@ -18,6 +18,7 @@ public class RetryInterceptor implements Interceptor {
     private static final List<Integer> codes = new ArrayList<>();
 
     static {
+        codes.add(1);
         codes.add(200);
         codes.add(201);
         codes.add(202);
@@ -79,10 +80,10 @@ public class RetryInterceptor implements Interceptor {
             String responseBody = response.peekBody(Long.MAX_VALUE).string();
             JSONObject jsonObject = JSONObject.parseObject(responseBody);
             //如果响应值没有code字段则默认设置为200
-            String code = Optional.ofNullable(jsonObject.getString("code")).orElse("200");
+            Integer code = Optional.ofNullable(jsonObject.getInteger("code")).orElse(200);
             flag = codes.contains(code);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         } finally {
             return flag;
         }
@@ -112,6 +113,7 @@ public class RetryInterceptor implements Interceptor {
                     return "";
                 }
             } catch (Exception e) {
+                log.error(e.getMessage());
                 return "Did not work";
             }
         }
