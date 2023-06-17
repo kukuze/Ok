@@ -5,33 +5,29 @@ import okhttp3.*;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 import java.io.InputStream;
-import java.util.Properties;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class RetryInterceptor implements Interceptor {
     protected final static Logger log = LoggerFactory.getLogger(RetryInterceptor.class);
 
-    private final int MAX_RETRY_COUNT; // 最大重试次数
-    private final int RETRY_DELAY_MILLIS; // 重试间隔时间
-    private final Set<Integer> SUCCESS_CODES; //什么响应值代表请求成功;
+    private int MAX_RETRY_COUNT; // 最大重试次数
+    private int RETRY_DELAY_MILLIS; // 重试间隔时间
+    private Set<Integer> SUCCESS_CODES; //什么响应值代表请求成功;
 
     public RetryInterceptor() {
-        Properties properties = new Properties();
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("application.properties")) {
-            properties.load(inputStream);
-            MAX_RETRY_COUNT = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.MaxRetryCount")).orElse("3"));
-            RETRY_DELAY_MILLIS = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.RetryDelayMillis")).orElse("100"));
-            SUCCESS_CODES = Arrays.stream(Optional.ofNullable(properties.getProperty("Ok.SuccessCodes")).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if(!(loadYaml()||loadProperties())){
+            MAX_RETRY_COUNT=3;
+            RETRY_DELAY_MILLIS=100;
+            SUCCESS_CODES=new HashSet<>();
         }
+        SUCCESS_CODES.add(200);
         log.error("您所使用的配置参数为:\n" +
                   "MAX_RETRY_COUNT = " + MAX_RETRY_COUNT + "\n" +
                   "RETRY_DELAY_MILLIS = " + RETRY_DELAY_MILLIS + "\n" +
                   "SUCCESS_CODES = " + SUCCESS_CODES);
-        SUCCESS_CODES.add(200);
     }
 
     @Override
@@ -142,6 +138,37 @@ public class RetryInterceptor implements Interceptor {
             return request.body().contentType().toString();
         } else {
             return "Unknown";
+        }
+    }
+
+    private boolean loadYaml(){
+        boolean res=false;
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("application.yaml")) {
+            Yaml yaml = new Yaml();
+            Map<String, Object> config = (LinkedHashMap)((LinkedHashMap)yaml.load(inputStream)).get("Ok");
+            MAX_RETRY_COUNT = Integer.parseInt(Optional.ofNullable(config.get("MaxRetryCount")).map(Object::toString).orElse("3"));
+            RETRY_DELAY_MILLIS = Integer.parseInt(Optional.ofNullable(config.get("RetryDelayMillis")).map(Object::toString).orElse("100"));
+            SUCCESS_CODES = Arrays.stream(Optional.ofNullable(config.get("SuccessCodes")).map(Object::toString).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
+            res=true;
+        } catch (Exception e) {
+            log.error("读取application.yaml失败");
+        }finally {
+            return res;
+        }
+    }
+    private boolean loadProperties(){
+        boolean res=false;
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("application.properties")) {
+            properties.load(inputStream);
+            MAX_RETRY_COUNT = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.MaxRetryCount")).orElse("3"));
+            RETRY_DELAY_MILLIS = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.RetryDelayMillis")).orElse("100"));
+            SUCCESS_CODES = Arrays.stream(Optional.ofNullable(properties.getProperty("Ok.SuccessCodes")).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
+            res=true;
+        }catch (Exception e) {
+            log.error("读取application.properties失败");
+        }finally {
+            return res;
         }
     }
 
