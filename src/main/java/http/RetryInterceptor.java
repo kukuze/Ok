@@ -5,26 +5,33 @@ import okhttp3.*;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.io.InputStream;
+import java.util.Properties;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class RetryInterceptor implements Interceptor {
     protected final static Logger log = LoggerFactory.getLogger(RetryInterceptor.class);
 
-    private static final int MAX_RETRY_COUNT = 3; // 最大重试次数
-    private static final int RETRY_DELAY_MILLIS = 100; // 重试间隔时间
-    private static final List<Integer> codes = new ArrayList<>();
+    private int MAX_RETRY_COUNT; // 最大重试次数
+    private int RETRY_DELAY_MILLIS; // 重试间隔时间
+    private Set<Integer> codes; //什么响应值代表请求成功;
 
-    static {
-        codes.add(1);
+    public RetryInterceptor() {
+        Properties properties = new Properties();
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("application.properties")) {
+            properties.load(inputStream);
+            MAX_RETRY_COUNT = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.MaxRetryCount")).orElse("3"));
+            RETRY_DELAY_MILLIS = Integer.parseInt(Optional.ofNullable(properties.getProperty("Ok.RetryDelayMillis")).orElse("100"));
+            codes = Arrays.stream(Optional.ofNullable(properties.getProperty("Ok.SuccessCodes")).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        log.error("您所使用的配置参数为:\n" +
+                  "MAX_RETRY_COUNT = " + MAX_RETRY_COUNT + "\n" +
+                  "RETRY_DELAY_MILLIS = " + RETRY_DELAY_MILLIS + "\n" +
+                  "codes = " + codes);
         codes.add(200);
-        codes.add(201);
-        codes.add(202);
-        codes.add(203);
-        codes.add(205);
-        codes.add(206);
     }
 
     @Override
@@ -66,8 +73,8 @@ public class RetryInterceptor implements Interceptor {
         try {
             String responseBody = response.peekBody(Long.MAX_VALUE).string();
             jsonObject = JSONObject.parseObject(responseBody);
-        }catch (Exception e){
-            log.error("获取失败的响应异常"+e.getMessage());
+        } catch (Exception e) {
+            log.error("获取失败的响应异常" + e.getMessage());
         }
         log.error("\n====== REQUEST FAILURE DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/error.log for more details\n======================================",
                 request.method(), request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request));
