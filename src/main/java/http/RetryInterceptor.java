@@ -24,7 +24,7 @@ public class RetryInterceptor implements Interceptor {
             SUCCESS_CODES=new HashSet<>();
         }
         SUCCESS_CODES.add(200);
-        log.info("您所使用的配置参数为:\n" +
+        log.error("您所使用的配置参数为:\n" +
                   "MAX_RETRY_COUNT = " + MAX_RETRY_COUNT + "\n" +
                   "RETRY_DELAY_MILLIS = " + RETRY_DELAY_MILLIS + "\n" +
                   "SUCCESS_CODES = " + SUCCESS_CODES);
