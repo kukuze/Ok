@@ -24,7 +24,7 @@ public class RetryInterceptor implements Interceptor {
             SUCCESS_CODES=new HashSet<>();
         }
         SUCCESS_CODES.add(200);
-        log.error("您所使用的配置参数为:\n" +
+        log.info("您所使用的配置参数为:\n" +
                   "MAX_RETRY_COUNT = " + MAX_RETRY_COUNT + "\n" +
                   "RETRY_DELAY_MILLIS = " + RETRY_DELAY_MILLIS + "\n" +
                   "SUCCESS_CODES = " + SUCCESS_CODES);
@@ -61,7 +61,7 @@ public class RetryInterceptor implements Interceptor {
                  * description:处理无响应
                  * author:yjz
                  */
-                log.error("正在进行第" + Integer.valueOf(retryCount + 1) + "次重试");
+                log.warn("正在进行第" + Integer.valueOf(retryCount + 1) + "次重试");
                 retryCount++;
                 log.warn(request.url() + "请求失败", e);
             }
@@ -151,7 +151,7 @@ public class RetryInterceptor implements Interceptor {
             SUCCESS_CODES = Arrays.stream(Optional.ofNullable(config.get("SuccessCodes")).map(Object::toString).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
             res=true;
         } catch (Exception e) {
-            log.error("读取application.yaml失败");
+            log.warn("读取application.yaml失败");
         }finally {
             return res;
         }
@@ -166,7 +166,7 @@ public class RetryInterceptor implements Interceptor {
             SUCCESS_CODES = Arrays.stream(Optional.ofNullable(properties.getProperty("Ok.SuccessCodes")).orElse("200").split(",")).map(Integer::new).collect(Collectors.toSet());
             res=true;
         }catch (Exception e) {
-            log.error("读取application.properties失败");
+            log.warn("读取application.properties失败");
         }finally {
             return res;
         }
