@@ -4,24 +4,6 @@
     <property name="FILESIZE" value="300MB"/>
     <!--日志文件保留天数-->
     <property name="MAXHISTORY" value="7"/>
-    <!--只记录debug-->
-    <appender name="file_debug" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/today/debug.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/history/debug/%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxHistory>${MAXHISTORY}</maxHistory>
-            <maxFileSize>${FILESIZE}</maxFileSize>
-        </rollingPolicy>
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %logger{36} - %m%n</pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-        <filter class="ch.qos.logback.classic.filter.LevelFilter">
-            <level>DEBUG</level>
-            <onMatch>ACCEPT</onMatch>
-            <onMismatch>DENY</onMismatch>
-        </filter>
-    </appender>
     <!--只记录info-->
     <appender name="file_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/today/info.log</file>
@@ -68,8 +50,7 @@
             <onMismatch>DENY</onMismatch>
         </filter>
     </appender>
-    <root level="debug">
-        <appender-ref ref="file_debug"/>
+    <root level="info">
         <appender-ref ref="file_info"/>
         <appender-ref ref="file_error"/>
         <appender-ref ref="console"/>
