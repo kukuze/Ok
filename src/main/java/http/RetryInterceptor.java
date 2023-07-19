@@ -6,6 +6,8 @@ import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,7 +33,7 @@ public class RetryInterceptor implements Interceptor {
     }
 
     @Override
-    public Response intercept(Chain chain) {
+    public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         Response response = null;
         JSONObject jsonObject = null;
@@ -70,10 +72,14 @@ public class RetryInterceptor implements Interceptor {
             String responseBody = response.peekBody(Long.MAX_VALUE).string();
             jsonObject = JSONObject.parseObject(responseBody);
         } catch (Exception e) {
-            log.error("获取失败的响应异常" + e.getMessage());
+            log.error("获取失败的响应异常",e);
         }
         log.error("\n====== REQUEST FAILURE DETAILS ======\nMethod: {}\nURL: {}\nResponse: {}\nParams: {}\nHeaders: {}\nContent-Type: {}\nPlease check /logs/today/error.log for more details\n======================================",
                 request.method(), request.url(), jsonObject, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request));
+        if (response==null){
+            //当无响应时，中断这次请求，如果返回null，则会导致Ok框架爆空指针异常
+            throw new IOException();
+        }
         return response;
     }
 

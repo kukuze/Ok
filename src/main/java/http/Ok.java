@@ -284,7 +284,7 @@ public class Ok {
                                 JSONObject json = JSONObject.parseObject(result);
                                 resultMap.put(index,json);
                             } catch (Exception e) {
-                                log.error(e.getMessage());
+                                log.error("异常",e);
                             }finally {
                                 latch.countDown();
                             }
@@ -298,7 +298,7 @@ public class Ok {
             }
             return res.toJSONString();
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("异常",e);
             return null;
         }
     }
@@ -343,7 +343,7 @@ public class Ok {
                     }
                 }
             } catch (Exception e) {
-                log.error(e.getMessage());
+                log.error("异常",e);
             }
         }
     }
