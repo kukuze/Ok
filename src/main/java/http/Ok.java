@@ -149,7 +149,7 @@ public class Ok {
             requests = new ArrayList<Request.Builder>();
         }
         StringBuffer suffix = new StringBuffer();
-        if (paramMap != null) {
+        if (paramMap != null&&paramMap.size()!=0) {
             suffix.append("?");
             suffix.append(mapToEncodedUrl(paramMap));
         }
@@ -240,7 +240,10 @@ public class Ok {
             requests = new ArrayList<Request.Builder>();
         }
         RequestBody requestBody;
-        String suffix = mapToEncodedUrl(xWwwFormUrlEncoded);
+        String suffix = null;
+        if (paramMap != null && paramMap.size() != 0) {
+            suffix = mapToEncodedUrl(xWwwFormUrlEncoded);
+        }
         requestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"), suffix);
         for (int i = 0; i < urls.size(); i++) {
             requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
