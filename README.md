@@ -26,3 +26,9 @@ postUrlEncoded
 4.sync||async
 
 重试得机制为如果没获取到数据，超时等就重试，如果获取到的数据 code为 200~206则不重试，否则重试。
+
+        <dependency>
+            <groupId>cn.glwsq.kukuze</groupId>
+            <artifactId>Ok</artifactId>
+            <version>0.0.3</version>
+        </dependency>
