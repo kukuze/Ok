@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <property scope="context" name="os" value="${os.name}" />
+    <!-- Windows环境下的fileNamePattern -->
+    <if condition='property("os").contains("Windows")'>
+        <then>
+            <property name="compressionSuffix" value=".zip" />
+        </then>
+        <else>
+            <property name="compressionSuffix" value=".gz" />
+        </else>
+    </if>
     <!--日志文件最大的大小-->
     <property name="FILESIZE" value="300MB"/>
     <!--日志文件保留天数-->
@@ -7,14 +17,13 @@
     <!--只记录info-->
     <appender name="file_info" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/today/info.log</file>
-        <append>true</append>
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>INFO</level>
             <onMatch>ACCEPT</onMatch>
             <onMismatch>DENY</onMismatch>
         </filter>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/history/info/%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/history/info/%d{yyyy-MM-dd}.%i.log${compressionSuffix}</fileNamePattern>
             <maxHistory>${MAXHISTORY}</maxHistory>
             <maxFileSize>${FILESIZE}</maxFileSize>
         </rollingPolicy>
@@ -27,7 +36,7 @@
     <appender name="file_error" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/today/error.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/history/error/%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/history/error/%d{yyyy-MM-dd}.%i.log${compressionSuffix}</fileNamePattern>
             <maxHistory>${MAXHISTORY}</maxHistory>
             <maxFileSize>${FILESIZE}</maxFileSize>
         </rollingPolicy>
