@@ -165,18 +165,16 @@ public class Ok {
 
     /**
      * 构建通过post的格式发送form的request
-     *
-     * @param formData
      * @return
      */
-    public Ok postForm(Map<String, String> formData) {
+    public Ok postForm() {
         if (requests == null) {
             requests = new ArrayList<Request.Builder>();
         }
         RequestBody requestBody;
         FormBody.Builder formBody = new FormBody.Builder();
-        if (formData != null) {
-            formData.forEach(formBody::add);
+        if (paramMap != null) {
+            paramMap.forEach(formBody::add);
         }
         requestBody = formBody.build();
         for (int i = 0; i < urls.size(); i++) {
@@ -186,31 +184,12 @@ public class Ok {
         return this;
     }
 
-    /**
-     * description:构建通过post的格式发送json的request
-     * author:yjz
-     *
-     * @param jsonString 需要以json格式发送的对象
-     * @return http.Ok
-     */
-    public Ok postJson(String jsonString) {
+    public Ok postJson() {
         if (requests == null) {
             requests = new ArrayList<Request.Builder>();
         }
         RequestBody requestBody;
-        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonString);
-        for (int i = 0; i < urls.size(); i++) {
-            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
-        }
-        return this;
-    }
-
-    public Ok postJson(Map<String, String> json) {
-        if (requests == null) {
-            requests = new ArrayList<Request.Builder>();
-        }
-        RequestBody requestBody;
-        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), JSON.toJSONString(json));
+        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), JSON.toJSONString(paramMap));
         for (int i = 0; i < urls.size(); i++) {
             requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
         }
@@ -229,26 +208,12 @@ public class Ok {
     }
 
     /**
-     * description:构建通过post的格式发送x-www-form-urlencoded的request
+     * description:本质与postform相同
      * author:yjz
-     *
-     * @param xWwwFormUrlEncoded 需要以x-www-form-urlencoded格式发送的对象
      * @return http.Ok
      */
-    public Ok postUrlEncoded(Map<String, String> xWwwFormUrlEncoded) {
-        if (requests == null) {
-            requests = new ArrayList<Request.Builder>();
-        }
-        RequestBody requestBody;
-        String suffix = null;
-        if (paramMap != null && paramMap.size() != 0) {
-            suffix = mapToEncodedUrl(xWwwFormUrlEncoded);
-        }
-        requestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"), suffix);
-        for (int i = 0; i < urls.size(); i++) {
-            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
-        }
-        return this;
+    public Ok postUrlEncoded() {
+        return postForm();
     }
 
 
