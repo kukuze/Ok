@@ -195,6 +195,17 @@ public class Ok {
         }
         return this;
     }
+    public Ok postJsonArray(JSONArray jsonArray) {
+        if (requests == null) {
+            requests = new ArrayList<Request.Builder>();
+        }
+        RequestBody requestBody;
+        requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonArray.toJSONString());
+        for (int i = 0; i < urls.size(); i++) {
+            requests.add(new Request.Builder().post(requestBody).url(urls.get(i)));
+        }
+        return this;
+    }
     public Ok post() {
         if (requests == null) {
             requests = new ArrayList<Request.Builder>();
