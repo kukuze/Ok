@@ -3,6 +3,8 @@ package http;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import http.config.DefaultOkConfig;
+import http.config.OkConfigInterface;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,33 +29,32 @@ import static http.utils.Url.mapToEncodedUrl;
 
 public class Ok {
     protected final static Logger log = LoggerFactory.getLogger(Ok.class);
-    private static volatile OkHttpClient okHttpClient = null;
+
+    private static ConcurrentHashMap<String, OkHttpClient> clientMap = new ConcurrentHashMap<>();
     private Map<String, String> headerMap;
     private Map<String, String> paramMap;
     private List<String> urls;
     private List<Request.Builder> requests;
-    private JSONArray res;
-
-
+    private String clientKey;
     /**
      * 初始化okHttpClient，并且允许https访问
      */
-    private Ok() {
-        if (okHttpClient == null) {
-            synchronized (Ok.class) {
-                if (okHttpClient == null) {
-                    TrustManager[] trustManagers = buildTrustManagers();
-                    okHttpClient = new OkHttpClient.Builder()
-                            .connectTimeout(10, TimeUnit.SECONDS)
-                            .writeTimeout(20, TimeUnit.SECONDS)
-                            .readTimeout(20, TimeUnit.SECONDS)
-                            .sslSocketFactory(createSSLSocketFactory(trustManagers), (X509TrustManager) trustManagers[0])
-                            .hostnameVerifier((hostName, session) -> true)
-                            .retryOnConnectionFailure(true)
-                            .addInterceptor(new RetryInterceptor())
-                            .build();
-                }
-            }
+    private Ok(OkConfigInterface okConfigInterface) {
+        clientKey = okConfigInterface.getClientKey();
+        //先get避免jdk1.8中computeIfAbsent获取值会加锁影响性能
+        if(clientMap.get(clientKey)==null) {
+            clientMap.computeIfAbsent(clientKey, key -> {
+                TrustManager[] trustManagers = buildTrustManagers();
+                return new OkHttpClient.Builder()
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .writeTimeout(20, TimeUnit.SECONDS)
+                        .readTimeout(20, TimeUnit.SECONDS)
+                        .sslSocketFactory(createSSLSocketFactory(trustManagers), (X509TrustManager) trustManagers[0])
+                        .hostnameVerifier((hostName, session) -> true)
+                        .retryOnConnectionFailure(true)
+                        .addInterceptor(new RetryInterceptor(okConfigInterface))
+                        .build();
+            });
         }
     }
 
@@ -63,8 +64,11 @@ public class Ok {
      *
      * @return
      */
+    public static Ok customBuilder(OkConfigInterface okConfigInterface) {
+        return new Ok(okConfigInterface);
+    }
     public static Ok builder() {
-        return new Ok();
+        return new Ok(DefaultOkConfig.getInstance());
     }
 
 
@@ -235,20 +239,19 @@ public class Ok {
      */
     public String sync() {
         setHeader(requests);
+        List<String> res = null;
         try {
             if (requests.size() == 1) {
-                Response response = okHttpClient.newCall(requests.get(0).build()).execute();
+                Response response = clientMap.get(clientKey).newCall(requests.get(0).build()).execute();
                 return response.body().string();
             } else {
-                if (res == null) {
-                    res = new JSONArray();
-                }
-                Map<Integer, JSONObject> resultMap = new ConcurrentHashMap<>(); // 用于存储请求结果的Map
+                res = new ArrayList<>();
+                Map<Integer, String> resultMap = new ConcurrentHashMap<>(); // 用于存储请求结果的Map
                 CountDownLatch latch = new CountDownLatch(urls.size());
                 for (int i = 0; i < requests.size(); i++) {
                     final Integer index = i;
                     Request.Builder request = requests.get(i);
-                    Call call = okHttpClient.newCall(request.build());
+                    Call call = clientMap.get(clientKey).newCall(request.build());
                     call.enqueue(new Callback() {
                         @Override
                         public void onFailure(Call call, IOException e) {
@@ -260,8 +263,7 @@ public class Ok {
                         public void onResponse(Call call, Response response) {
                             try {
                                 String result = response.body().string();
-                                JSONObject json = JSONObject.parseObject(result);
-                                resultMap.put(index,json);
+                                resultMap.put(index,result);
                             } catch (Exception e) {
                                 log.error("异常",e);
                             }finally {
@@ -275,7 +277,7 @@ public class Ok {
                     res.add(resultMap.get(i));
                 }
             }
-            return res.toJSONString();
+            return res.toString();
         } catch (Exception e) {
             log.error("异常",e);
             return null;
@@ -290,7 +292,7 @@ public class Ok {
     public void async(ICallBack callBack) {
         setHeader(requests);
         for (Request.Builder request : requests) {
-            okHttpClient.newCall(request.build()).enqueue(new Callback() {
+            clientMap.get(clientKey).newCall(request.build()).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
                     callBack.onFailure(call, e.getMessage());
@@ -303,7 +305,25 @@ public class Ok {
                 }
             });
         }
+    }
+    /**
+     * 异步请求，无接口回调
+     *
+     *
+     */
+    public void async() {
+        setHeader(requests);
+        for (Request.Builder request : requests) {
+            clientMap.get(clientKey).newCall(request.build()).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                }
+                @Override
+                public void onResponse(Call call, Response response){
 
+                }
+            });
+        }
     }
 
 
