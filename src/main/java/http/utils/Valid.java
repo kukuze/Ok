@@ -1,6 +1,7 @@
 package http.utils;
 
 import com.alibaba.fastjson.JSONObject;
+import http.config.OkConfigInterface;
 
 /**
  * @author yjz
@@ -24,6 +25,26 @@ public class Valid {
         }
         JSONObject jsonObject = JSONObject.parseObject(res);
         if(jsonObject.getJSONObject("data")==null) {
+            return false;
+        }
+        return true;
+    }
+    public static boolean vJsonArray(String res, OkConfigInterface okConfigInterface){
+        if(res==null) {
+            return false;
+        }
+        JSONObject jsonObject = JSONObject.parseObject(res);
+        if(jsonObject.getJSONArray(okConfigInterface.getResponseDataField().getFieldName())==null||jsonObject.getJSONArray(okConfigInterface.getResponseDataField().getFieldName()).size()==0) {
+            return false;
+        }
+        return true;
+    }
+    public static boolean vJsonObject(String res, OkConfigInterface okConfigInterface){
+        if(res==null) {
+            return false;
+        }
+        JSONObject jsonObject = JSONObject.parseObject(res);
+        if(jsonObject.getJSONObject(okConfigInterface.getResponseDataField().getFieldName())==null) {
             return false;
         }
         return true;
