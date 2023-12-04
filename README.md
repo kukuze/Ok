@@ -25,7 +25,7 @@ postUrlEncoded
 
 4.sync||async
 
-重试得机制为如果没获取到数据，超时等就重试，如果获取到的数据 code为 200~206则不重试，否则重试。
+重试得机制为如果没获取到数据，超时等就重试，如果获取到的数据 code为 200则不重试，否则重试。当然也可以自定义重试，code等规则。
 
         <dependency>
             <groupId>cn.glwsq.kukuze</groupId>
