@@ -20,6 +20,9 @@ public class Log {
     private static final Logger log = LoggerFactory.getLogger(Log.class);
 
     public static void logSuccess(String method, String url, String response, String params, String headers, String contentType,String config) {
+        if(!log.isInfoEnabled()) {
+            return;
+        }
         JSONObject logJson = new JSONObject();
         logJson.put("Method",method);
         logJson.put("Url",url);
@@ -29,8 +32,12 @@ public class Log {
         logJson.put("Content-Type",contentType);
         logJson.put("Config",config);
         log.info(JSON.toJSONString(logJson, SerializerFeature.PrettyFormat));
+
     }
     public static void logError(String method, String url, String response, String params, String headers, String contentType,String config) {
+        if(!log.isErrorEnabled()) {
+            return;
+        }
         JSONObject logJson = new JSONObject();
         logJson.put("Method",method);
         logJson.put("Url",url);
