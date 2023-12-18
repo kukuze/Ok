@@ -46,7 +46,7 @@ public class Ok {
             clientMap.computeIfAbsent(clientKey, key -> {
                 TrustManager[] trustManagers = buildTrustManagers();
                 return new OkHttpClient.Builder()
-                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .connectTimeout(5, TimeUnit.SECONDS)
                         .writeTimeout(20, TimeUnit.SECONDS)
                         .readTimeout(20, TimeUnit.SECONDS)
                         .sslSocketFactory(createSSLSocketFactory(trustManagers), (X509TrustManager) trustManagers[0])
@@ -278,8 +278,10 @@ public class Ok {
                 }
             }
             return res.toString();
+        } catch (IOException e) {
+            return null;
         } catch (Exception e) {
-            log.error("异常",e);
+            log.error("数据处理异常",e);
             return null;
         }
     }
