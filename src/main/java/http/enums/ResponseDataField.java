@@ -3,7 +3,8 @@ package http.enums;
 public enum ResponseDataField {
     DATA("data"),
     RESULT("result"),
-    PAYLOAD("payload");
+    PAYLOAD("payload"),
+    CONTENT("content");
     private final String fieldName;
 
     ResponseDataField(String fieldName) {

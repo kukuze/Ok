@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>cn.glwsq.kukuze</groupId>
     <artifactId>Ok</artifactId>
-    <version>0.0.7</version>
+    <version>0.0.9</version>
     <packaging>jar</packaging>
     <name>Ok</name>
     <url>https://github.com/kukuze/Ok</url>
