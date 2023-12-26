@@ -28,7 +28,7 @@ import static http.utils.Url.mapToEncodedUrl;
 
 
 public class Ok {
-    protected final static Logger log = LoggerFactory.getLogger(Ok.class);
+    private static final Logger log = LoggerFactory.getLogger(Ok.class);
 
     private static ConcurrentHashMap<String, OkHttpClient> clientMap = new ConcurrentHashMap<>();
     private Map<String, String> headerMap;
@@ -64,7 +64,7 @@ public class Ok {
      *
      * @return
      */
-    public static Ok customBuilder(OkConfigInterface okConfigInterface) {
+    public static Ok builder(OkConfigInterface okConfigInterface) {
         return new Ok(okConfigInterface);
     }
     public static Ok builder() {
