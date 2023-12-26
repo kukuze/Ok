@@ -3,14 +3,14 @@ package http;
 import com.alibaba.fastjson.JSONObject;
 import http.config.OkConfigInterface;
 import http.enums.ResponseFormat;
-import http.utils.Log;
+import http.utils.OkResponseLog;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
 
 import java.io.IOException;
 
-import static http.utils.Log.*;
+import static http.utils.ParseResponse.*;
 
 public class RetryInterceptor implements Interceptor {
 
@@ -45,7 +45,7 @@ public class RetryInterceptor implements Interceptor {
                 if(RESPONSE_FORMAT.equals(ResponseFormat.JSON.getTypeName())){
                     jsonObject=JSONObject.parseObject(responseString);
                     if (jsonObject.getInteger(CODE_FIELD).equals(SUCCESS_CODES)) {
-                        Log.logSuccess(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
+                        OkResponseLog.logSuccess(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
                         return response;
                     } else {
                         //处理有响应但结果不符合。
@@ -55,12 +55,12 @@ public class RetryInterceptor implements Interceptor {
                             response.close();// 非最后一次重试失败需要关闭response
                         }else{
                             //最后一次返回去结果
-                            Log.logError(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
+                            OkResponseLog.logError(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
                             return response;
                         }
                     }
                 }else {
-                    Log.logSuccess(request.method(), request.url().toString(), responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
+                    OkResponseLog.logSuccess(request.method(), request.url().toString(), responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
                     return response;
                 }
             } catch (Exception e) {
@@ -68,7 +68,7 @@ public class RetryInterceptor implements Interceptor {
                 retryCount++;
             }
         }
-        Log.logError(request.method(), request.url().toString(), "无响应或 JSON与HTML混用", getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
+        OkResponseLog.logError(request.method(), request.url().toString(), "无响应或 JSON与HTML混用", getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request),CONFIG_STRING);
         if (response==null){
             //当无响应时，中断这次请求，如果返回null，则会导致Ok框架爆空指针异常
             throw new IOException();

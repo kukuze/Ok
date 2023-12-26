@@ -344,7 +344,7 @@ public class Ok {
                     }
                 }
             } catch (Exception e) {
-                log.error("异常",e);
+                log.error("添加请求头异常",e);
             }
         }
     }
@@ -362,7 +362,7 @@ public class Ok {
             sc.init(null, trustAllCerts, new SecureRandom());
             ssfFactory = sc.getSocketFactory();
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("生成安全套接字工厂异常",e);
         }
         return ssfFactory;
     }
