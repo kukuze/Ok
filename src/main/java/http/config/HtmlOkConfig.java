@@ -21,7 +21,7 @@ public class HtmlOkConfig implements OkConfigInterface {
 
     @Override
     public RetryStrategy getRetryStrategy() {
-        return RetryStrategy.TWO_ATTEMPTS;
+        return RetryStrategy.NO_RETRY;
     }
 
     @Override
