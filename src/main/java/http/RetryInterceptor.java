@@ -44,35 +44,50 @@ public class RetryInterceptor implements Interceptor {
         Request request = chain.request();
         Response response = null;
         String responseString = null;
-        JSONObject jsonObject;
+        JSONObject jsonObject=null;
         int retryCount = 0;
+        boolean isJson = false;
         while (retryCount < MAX_RETRY_COUNT) {
             try {
                 response = chain.proceed(request);
                 responseString = response.peekBody(Long.MAX_VALUE).string();
-                if (RESPONSE_FORMAT.equals(ResponseFormat.JSON.getTypeName())) {
+                try {
                     jsonObject = JSONObject.parseObject(responseString);
-                    if (SUCCESS_CODES.equals(jsonObject.getInteger(CODE_FIELD))) {
-                        OkResponseLog.logSuccess(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
+                    isJson = true;
+                } catch (JSONException ignored) {
+                }
+                if (RESPONSE_FORMAT.equals(ResponseFormat.JSON.getTypeName())) {
+                    if (isJson&&SUCCESS_CODES.equals(jsonObject.getInteger(CODE_FIELD))) {
+                        OkResponseLog.logSuccess(request.method(), request.url().toString(), responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
                         return response;
-                    } else {
-                        //处理有响应且格式正确，但响应字段的值不是SUCCESS_CODES。
-                        Thread.sleep(RETRY_DELAY_MILLIS);
-                        if (retryCount != MAX_RETRY_COUNT) {
-                            response.close();// 非最后一次重试失败需要关闭response
-                        } else {
-                            //最后一次返回去结果
-                            OkResponseLog.logError(request.method(), request.url().toString(), jsonObject.toJSONString(), getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
+                    } else if(isJson){
+                        if (retryCount == MAX_RETRY_COUNT-1) {
+                            OkResponseLog.logError(request.method(), request.url().toString(), "响应码与预期不符"+responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
+                            return response;
+                        }
+                    }else{
+                        if (retryCount == MAX_RETRY_COUNT-1) {
+                            OkResponseLog.logError(request.method(), request.url().toString(), "响应格式与预期不符"+responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
                             return response;
                         }
                     }
+                    Thread.sleep(RETRY_DELAY_MILLIS);
+                    response.close();
                 } else {
-                    OkResponseLog.logSuccess(request.method(), request.url().toString(), responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
-                    return response;
+                    // 期待其他格式
+                    if (isJson) {
+                        if (retryCount == MAX_RETRY_COUNT-1) {
+                            OkResponseLog.logError(request.method(), request.url().toString(), "响应格式与预期不符|"+responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
+                            return response;
+                        }
+                    } else {
+                        // 响应其他
+                        OkResponseLog.logSuccess(request.method(), request.url().toString(), responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
+                        return response;
+                    }
+                    response.close();
                 }
-            } catch (JSONException e) {
-                //响应与预期不符
-            } catch (ConnectException e) {
+            }catch (ConnectException e) {
                 //无法建立连接
                 isNoResponse = true;
             } catch (Exception e) {
@@ -83,8 +98,6 @@ public class RetryInterceptor implements Interceptor {
         }
         if (isNoResponse) {
             OkResponseLog.logError(request.method(), request.url().toString(), "无响应", getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
-        } else {
-            OkResponseLog.logError(request.method(), request.url().toString(), "响应格式与预期不符|"+responseString, getParamsInfo(request.body()), getHeadersInfo(request.headers()), getContentType(request), CONFIG_STRING);
         }
         if (response == null) {
             //当无响应时，中断这次请求，如果返回null，则会导致Ok框架爆空指针异常
@@ -92,6 +105,4 @@ public class RetryInterceptor implements Interceptor {
         }
         return response;
     }
-
-
 }
